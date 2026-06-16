@@ -127,7 +127,7 @@ function drawFrame(index) {
   }
 }
 
-// Single frame loader helper with duplicate request prevention
+// Single frame loader helper with duplicate request prevention and GPU pre-decoding
 const loadFrame = (index) => {
   if (frames[index]) return Promise.resolve();
   if (loadingStates[index]) return loadingStates[index];
@@ -137,7 +137,15 @@ const loadFrame = (index) => {
     img.onload = () => {
       frames[index] = img;
       loadedFramesCount++;
-      resolve();
+      
+      // Force hardware decoding before resolving, preventing main-thread layout jank on first draw
+      if (typeof img.decode === 'function') {
+        img.decode()
+          .then(() => resolve())
+          .catch(() => resolve()); // Fallback on decode failure
+      } else {
+        resolve();
+      }
     };
     img.onerror = () => {
       // Resolve silently to prevent blocking progress
@@ -237,7 +245,13 @@ const preloadProgressively = async () => {
     if (preloader) {
       preloader.classList.add('fade-out');
     }
-    if (typeof lenis !== 'undefined') lenis.start();
+    
+    // Reset scroll positions to zero to clear any accumulated load-time scroll delta
+    window.scrollTo(0, 0);
+    if (typeof lenis !== 'undefined') {
+      lenis.scrollTo(0, { immediate: true });
+      lenis.start();
+    }
   }, 400); // Small visual buffer for progress bar 100% completion state
   
   // 5. Load remaining frames progressively in background batches
