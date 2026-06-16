@@ -37,6 +37,7 @@ const FRAME_PATH = (index) => {
 };
 
 const frames = new Array(FRAME_COUNT).fill(null);
+const loadingStates = new Array(FRAME_COUNT).fill(null);
 let loadedFramesCount = 0;
 
 // Resize canvas dynamically keeping aspect ratio
@@ -89,14 +90,27 @@ function drawFrame(index) {
     
     ctx.clearRect(0, 0, parentWidth, parentHeight);
     ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+  } else {
+    // High-priority load of the frame the user is currently scrolled on
+    loadFrame(clampedIndex).then(() => {
+      const trigger = ScrollTrigger.getById('hero-trigger');
+      if (trigger) {
+        const currentIdx = Math.floor(trigger.progress * (FRAME_COUNT - 1));
+        // Only draw if user is still within 3 frames of this one
+        if (Math.abs(currentIdx - clampedIndex) <= 3) {
+          drawFrame(clampedIndex);
+        }
+      }
+    });
   }
 }
 
-// Single frame loader helper
+// Single frame loader helper with duplicate request prevention
 const loadFrame = (index) => {
-  return new Promise((resolve) => {
-    if (frames[index]) return resolve();
-    
+  if (frames[index]) return Promise.resolve();
+  if (loadingStates[index]) return loadingStates[index];
+  
+  const promise = new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
       frames[index] = img;
@@ -104,16 +118,28 @@ const loadFrame = (index) => {
       resolve();
     };
     img.onerror = () => {
-      // In case of error, resolve silently to not block loading
+      // Resolve silently to prevent blocking progress
       resolve();
     };
     img.src = FRAME_PATH(index + 1);
   });
+  
+  loadingStates[index] = promise;
+  return promise;
+};
+
+// Batch loader helper
+const loadInBatches = async (indices, batchSize) => {
+  for (let i = 0; i < indices.length; i += batchSize) {
+    const batch = indices.slice(i, i + batchSize);
+    await Promise.all(batch.map(index => loadFrame(index)));
+  }
 };
 
 // Progressive Preloading Strategy
 const preloadProgressively = async () => {
   if (!canvas || !ctx) return;
+  
   // 1. Load the first frame immediately to display it
   await loadFrame(0);
   resizeCanvas();
@@ -125,7 +151,7 @@ const preloadProgressively = async () => {
   // 3. Initialize ScrollTrigger for scrubbing now that initial frames are ready
   initScrollTrigger();
   
-  // 4. Load remaining frames progressively in the background
+  // 4. Load remaining frames progressively in background batches
   loadRemainingFrames();
 };
 
@@ -144,19 +170,30 @@ const initScrollTrigger = () => {
   });
 };
 
-// Load remainder frames quietly
+// Load remainder frames in steps (every 10th, then every 5th, then all rest) in batches of 8
 const loadRemainingFrames = async () => {
-  for (let i = 16; i < FRAME_COUNT; i++) {
-    await loadFrame(i);
-    // Draw current frame to render update if user is already scrolling
-    const trigger = ScrollTrigger.getById('hero-trigger');
-    if (trigger && trigger.progress > 0) {
-      const currentFrameIndex = Math.floor(trigger.progress * (FRAME_COUNT - 1));
-      if (currentFrameIndex === i) {
-        drawFrame(i);
-      }
-    }
+  const batchSize = 8;
+
+  // Step 1: Every 10th frame (rough skeleton)
+  const step10 = [];
+  for (let i = 16; i < FRAME_COUNT; i += 10) {
+    step10.push(i);
   }
+  await loadInBatches(step10, batchSize);
+
+  // Step 2: Every 5th frame
+  const step5 = [];
+  for (let i = 16; i < FRAME_COUNT; i += 5) {
+    if (i % 10 !== 0) step5.push(i);
+  }
+  await loadInBatches(step5, batchSize);
+
+  // Step 3: All remaining frames to complete full density
+  const remaining = [];
+  for (let i = 16; i < FRAME_COUNT; i++) {
+    if (i % 5 !== 0) remaining.push(i);
+  }
+  await loadInBatches(remaining, batchSize);
 };
 
 // =============================================
