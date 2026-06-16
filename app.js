@@ -2,6 +2,25 @@
 gsap.registerPlugin(ScrollTrigger);
 
 // =============================================
+// 0. DYNAMIC PRELOADER INJECTION
+// =============================================
+const injectPreloader = () => {
+  const preloaderHTML = `
+    <div class="preloader" id="preloader">
+      <div class="preloader-content">
+        <div class="preloader-logo">611<span>detailing</span></div>
+        <div class="preloader-progress-container">
+          <div class="preloader-progress-bar" id="preloader-progress-bar"></div>
+        </div>
+        <div class="preloader-percentage" id="preloader-percentage">0%</div>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('afterbegin', preloaderHTML);
+};
+injectPreloader();
+
+// =============================================
 // 1. SMOOTH SCROLLING (Lenis)
 // =============================================
 const lenis = new Lenis({
@@ -10,6 +29,9 @@ const lenis = new Lenis({
   smoothWheel: true,
   wheelMultiplier: 1.05,
 });
+
+// Lock scroll immediately during preloading
+lenis.stop();
 
 // Update ScrollTrigger on Lenis scroll
 lenis.on('scroll', ScrollTrigger.update);
@@ -138,20 +160,87 @@ const loadInBatches = async (indices, batchSize) => {
 
 // Progressive Preloading Strategy
 const preloadProgressively = async () => {
-  if (!canvas || !ctx) return;
+  const isHomepage = !!document.getElementById('hero');
   
-  // 1. Load the first frame immediately to display it
-  await loadFrame(0);
-  resizeCanvas();
+  if (!isHomepage) {
+    // We are on a service page: there is no hero canvas sequence.
+    // Run a quick, sleek simulated progress bar transition.
+    const preloader = document.getElementById('preloader');
+    const progressBar = document.getElementById('preloader-progress-bar');
+    const percentageText = document.getElementById('preloader-percentage');
+    
+    if (preloader && progressBar && percentageText) {
+      let progress = 0;
+      const interval = setInterval(() => {
+        progress += 4;
+        if (progress > 100) progress = 100;
+        
+        progressBar.style.width = `${progress}%`;
+        percentageText.textContent = `${progress}%`;
+        
+        if (progress === 100) {
+          clearInterval(interval);
+          setTimeout(() => {
+            preloader.classList.add('fade-out');
+            if (typeof lenis !== 'undefined') lenis.start();
+          }, 300);
+        }
+      }, 15); // ~375ms loading time for sleek page entrance
+    } else {
+      if (typeof lenis !== 'undefined') lenis.start();
+    }
+    return;
+  }
+
+  // We are on the homepage:
+  if (!canvas || !ctx) {
+    const preloader = document.getElementById('preloader');
+    if (preloader) preloader.classList.add('fade-out');
+    if (typeof lenis !== 'undefined') lenis.start();
+    return;
+  }
   
-  // 2. Load the first 15 frames for an initial smooth scrub feel
-  const initialFrames = Array.from({ length: 15 }, (_, i) => i + 1);
-  await Promise.all(initialFrames.map(index => loadFrame(index)));
+  // Set critical initial frames to load (first 30 frames, indices 0 to 29)
+  const CRITICAL_FRAMES_COUNT = 30;
+  let loadedCriticalCount = 0;
   
-  // 3. Initialize ScrollTrigger for scrubbing now that initial frames are ready
+  const updateProgress = () => {
+    loadedCriticalCount++;
+    const progress = Math.min(100, Math.floor((loadedCriticalCount / CRITICAL_FRAMES_COUNT) * 100));
+    
+    const progressBar = document.getElementById('preloader-progress-bar');
+    const percentageText = document.getElementById('preloader-percentage');
+    if (progressBar) progressBar.style.width = `${progress}%`;
+    if (percentageText) percentageText.textContent = `${progress}%`;
+  };
+
+  // 1. Load the very first frame immediately and render it
+  await loadFrame(0).then(() => {
+    resizeCanvas();
+    updateProgress();
+  });
+  
+  // 2. Load the remaining critical frames (indices 1 to 29) in parallel, updating progress on each load
+  const criticalIndices = Array.from({ length: CRITICAL_FRAMES_COUNT - 1 }, (_, i) => i + 1);
+  await Promise.all(criticalIndices.map(index => {
+    return loadFrame(index).then(() => {
+      updateProgress();
+    });
+  }));
+  
+  // 3. Initialize ScrollTrigger for scrubbing now that the critical segment is ready
   initScrollTrigger();
   
-  // 4. Load remaining frames progressively in background batches
+  // 4. Smoothly fade out preloader and enable scroll
+  setTimeout(() => {
+    const preloader = document.getElementById('preloader');
+    if (preloader) {
+      preloader.classList.add('fade-out');
+    }
+    if (typeof lenis !== 'undefined') lenis.start();
+  }, 400); // Small visual buffer for progress bar 100% completion state
+  
+  // 5. Load remaining frames progressively in background batches
   loadRemainingFrames();
 };
 
