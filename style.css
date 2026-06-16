@@ -299,6 +299,7 @@ header:hover {
   text-align: center;
   padding: 0 24px;
   pointer-events: none;
+  will-change: transform, opacity;
 }
 
 .hero-eyebrow {
@@ -377,6 +378,11 @@ header:hover {
 /* ====================
    SECTIONS
    ==================== */
+.fade-up {
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
 section.page-section {
   padding: 140px max(4vw, 24px);
   position: relative;
@@ -499,7 +505,10 @@ section.page-section {
   flex-direction: column;
   justify-content: space-between;
   min-height: 320px;
-  transition: var(--transition-smooth);
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, border-color, box-shadow;
   text-decoration: none;
   color: inherit;
 }
