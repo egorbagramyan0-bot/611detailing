@@ -1,6 +1,7 @@
 /* Premium Staggered Menu for 611 Detailing (Mobile Only) */
 
-.staggered-menu-wrapper {
+.staggered-menu-wrapper,
+.sm-toggle {
   display: none;
 }
 
@@ -169,8 +170,10 @@
     overflow-y: auto;
     overflow-x: hidden;
     display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
     align-items: center;
-    padding: 100px 24px 60px;
+    padding: 120px 24px 60px;
     will-change: transform;
   }
 
