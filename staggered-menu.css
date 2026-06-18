@@ -1,0 +1,376 @@
+/* Premium Staggered Menu for 611 Detailing (Mobile Only) */
+
+.staggered-menu-wrapper {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  /* ====================
+     WRAPPER & CORE
+     ==================== */
+  .staggered-menu-wrapper {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1200; /* Higher than regular floating header */
+    pointer-events: none; /* Let clicks pass through to page when closed */
+  }
+
+  .staggered-menu-wrapper[data-open] {
+    pointer-events: auto; /* Intercept clicks when open */
+  }
+
+  /* ====================
+     PRE-LAYERS
+     ==================== */
+  .sm-prelayers {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+    overflow: hidden;
+  }
+
+  .sm-prelayer {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    will-change: transform;
+  }
+
+  /* ====================
+     HEADER
+     ==================== */
+  .staggered-menu-header {
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90vw;
+    height: 56px;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 10;
+    pointer-events: auto; /* Always clickable */
+    transition: var(--transition-smooth);
+    border-radius: 32px;
+    border: 1px solid transparent;
+  }
+
+  /* When menu is open, make header completely transparent to blend into overlay */
+  .staggered-menu-wrapper[data-open] .staggered-menu-header {
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  /* Logo styling inside mobile header */
+  .sm-logo {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    pointer-events: auto;
+  }
+
+  /* ====================
+     TOGGLE BUTTON
+     ==================== */
+  .sm-toggle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(14, 14, 17, 0.6);
+    border: 1px solid var(--border-light);
+    height: 40px;
+    padding: 0 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    color: var(--text-main);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: border-color 0.3s ease, background 0.3s ease;
+    outline: none;
+    pointer-events: auto;
+  }
+
+  .sm-toggle:hover {
+    border-color: var(--border-glow);
+    background: rgba(20, 20, 25, 0.8);
+  }
+
+  .sm-toggle-textWrap {
+    display: inline-block;
+    overflow: hidden;
+    height: 1.2em;
+    vertical-align: middle;
+  }
+
+  .sm-toggle-textInner {
+    display: flex;
+    flex-direction: column;
+    text-align: right;
+  }
+
+  .sm-toggle-line {
+    height: 1.2em;
+    line-height: 1.2em;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    font-weight: 700;
+    font-family: var(--font-sans);
+  }
+
+  .sm-icon {
+    display: inline-block;
+    position: relative;
+    width: 14px;
+    height: 14px;
+  }
+
+  .sm-icon-line {
+    position: absolute;
+    top: 6px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background-color: currentColor;
+    border-radius: 1px;
+    transition: background-color 0.3s ease;
+  }
+
+  .sm-icon-line-v {
+    top: 0;
+    left: 6px;
+    width: 2px;
+    height: 100%;
+  }
+
+  /* ====================
+     MENU PANEL
+     ==================== */
+  .staggered-menu-panel {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    background: #070708; /* Premium dark background */
+    z-index: 2;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    align-items: center;
+    padding: 100px 24px 60px;
+    will-change: transform;
+  }
+
+  .sm-panel-inner {
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+  }
+
+  /* ====================
+     MENU LIST & ITEMS
+     ==================== */
+  .sm-panel-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .sm-panel-itemWrap {
+    overflow: hidden;
+    display: block;
+  }
+
+  .sm-panel-item {
+    display: flex;
+    align-items: baseline;
+    text-decoration: none;
+    color: var(--text-main);
+    position: relative;
+    padding: 4px 0;
+    outline: none;
+  }
+
+  .sm-panel-itemLabel {
+    display: inline-block;
+    font-family: var(--font-heading);
+    font-size: 2.2rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    will-change: transform;
+    transition: color 0.3s ease;
+  }
+
+  /* Subtitle/numbering effect if active */
+  .sm-panel-list[data-numbering] .sm-panel-item::before {
+    content: attr(data-index);
+    font-family: var(--font-subheading);
+    font-size: 0.9rem;
+    color: var(--accent-cyan);
+    margin-right: 18px;
+    opacity: var(--sm-num-opacity, 0);
+    transition: opacity 0.3s ease;
+    font-weight: 500;
+    display: inline-block;
+    width: 20px;
+  }
+
+  .sm-panel-item:hover .sm-panel-itemLabel {
+    color: var(--accent-cyan);
+    transform: translateX(8px);
+    transition: color 0.3s ease, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* ====================
+     SOCIALS / CONTACTS
+     ==================== */
+  .sm-socials {
+    border-top: 1px solid var(--border-light);
+    padding-top: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .sm-socials-title {
+    font-family: var(--font-subheading);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  .sm-socials-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .sm-socials-link {
+    text-decoration: none;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    transition: color 0.3s ease;
+    display: inline-block;
+    will-change: transform;
+  }
+
+  .sm-socials-link:hover {
+    color: var(--text-main);
+  }
+
+  /* ====================
+     PREMIUM HEADER OVERRIDES & OLD MENU HYDRATION
+     ==================== */
+  /* Hide the old hamburger toggle since we use .sm-toggle */
+  .mobile-nav-toggle {
+    display: none !important;
+  }
+  
+  /* Hide the old slide-in mobile navigation drawer */
+  .nav-links {
+    display: none !important;
+  }
+
+  /* Make sure header stays on top of the menu panel */
+  header {
+    z-index: 1210 !important; /* wrapper is 1200, header must be above it */
+  }
+
+  /* Hide the header's CTA button completely on mobile */
+  header .cta-button {
+    display: none !important;
+  }
+
+  /* Replace "611 detailing" with "611" on mobile logo */
+  header .logo span {
+    display: none !important;
+  }
+
+  /* Hide the header's background/border/blur when menu is open */
+  header.sm-menu-open {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /* ====================
+     SUBMENU / ACCORDION STYLES
+     ==================== */
+  button.sm-submenu-toggle {
+    background: transparent;
+    border: none;
+    outline: none;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    text-align: left;
+    cursor: pointer;
+    color: var(--text-main);
+    padding: 4px 0;
+  }
+
+  .sm-submenu-arrow {
+    margin-left: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    color: var(--text-muted);
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), color 0.3s ease;
+  }
+
+  button.sm-submenu-toggle:hover .sm-submenu-arrow {
+    color: var(--accent-cyan);
+  }
+
+  .sm-submenu-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-left: 38px; /* Alignment with parent item text (20px prefix + 18px gap) */
+    overflow: hidden;
+    will-change: height, opacity;
+  }
+
+  .sm-submenu-item {
+    font-family: var(--font-sans);
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.3s ease, padding-left 0.3s ease;
+    display: block;
+    padding: 4px 0;
+  }
+
+  .sm-submenu-item:hover {
+    color: var(--accent-cyan);
+    padding-left: 6px;
+  }
+}

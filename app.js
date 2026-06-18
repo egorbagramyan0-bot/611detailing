@@ -1,6 +1,8 @@
 // Register GSAP ScrollTrigger
 gsap.registerPlugin(ScrollTrigger);
 
+import { initStaggeredMenu } from './staggered-menu.js';
+
 // =============================================
 // 0. DYNAMIC PRELOADER INJECTION
 // =============================================
@@ -511,6 +513,24 @@ const initWorksCarousel = () => {
   
   if (!carousel || !prevBtn || !nextBtn) return;
   
+  // 1. Setup Infinite Cloning
+  const originalCards = Array.from(carousel.querySelectorAll('.work-card'));
+  if (originalCards.length === 0) return;
+  
+  // Prepend clones (reverse order to maintain correct sequence)
+  originalCards.slice().reverse().forEach(card => {
+    const clone = card.cloneNode(true);
+    clone.classList.add('clone');
+    carousel.insertBefore(clone, carousel.firstChild);
+  });
+  
+  // Append clones
+  originalCards.forEach(card => {
+    const clone = card.cloneNode(true);
+    clone.classList.add('clone');
+    carousel.appendChild(clone);
+  });
+  
   // Create lightbox element in DOM if it doesn't exist
   let lightbox = document.querySelector('.lightbox');
   if (!lightbox) {
@@ -548,117 +568,199 @@ const initWorksCarousel = () => {
     });
   }
   
-  const updateButtons = () => {
-    const scrollLeft = carousel.scrollLeft;
-    const maxScroll = carousel.scrollWidth - carousel.clientWidth;
-    
-    // Check if scrolled to start or end with a small threshold
-    if (scrollLeft <= 5) {
-      prevBtn.classList.add('disabled');
-    } else {
-      prevBtn.classList.remove('disabled');
-    }
-    
-    if (scrollLeft >= maxScroll - 5) {
-      nextBtn.classList.add('disabled');
-    } else {
-      nextBtn.classList.remove('disabled');
-    }
+  // Measure width functions
+  const getCardWidthWithGap = () => {
+    const card = carousel.querySelector('.work-card');
+    const gap = parseFloat(window.getComputedStyle(carousel).gap) || 32;
+    return card ? card.offsetWidth + gap : 572;
   };
   
-  // Set initial state
-  updateButtons();
+  const getSingleSetWidth = () => {
+    const cardsList = Array.from(carousel.querySelectorAll('.work-card')).slice(0, originalCards.length);
+    const gap = parseFloat(window.getComputedStyle(carousel).gap) || 32;
+    return cardsList.reduce((sum, c) => sum + c.offsetWidth + gap, 0);
+  };
+  
+  // Set initial scroll position to the start of the middle (original) set of cards
+  const setInitialScroll = () => {
+    carousel.style.scrollBehavior = 'auto';
+    carousel.scrollLeft = getSingleSetWidth();
+    carousel.style.scrollBehavior = '';
+  };
+  
+  // Set initial position
+  // Wait a tiny delay to ensure layout is computed, or do it immediately
+  setTimeout(setInitialScroll, 50);
   
   // Scroll on arrow click
-  const getScrollAmount = () => {
-    const cards = carousel.querySelectorAll('.work-card');
-    if (cards.length > 0) {
-      const cardWidth = cards[0].offsetWidth;
-      const gap = parseFloat(window.getComputedStyle(carousel).gap) || 32;
-      return cardWidth + gap;
-    }
-    return 572; // Fallback
-  };
-  
   prevBtn.addEventListener('click', () => {
-    const amount = getScrollAmount();
+    const amount = getCardWidthWithGap();
     carousel.scrollBy({ left: -amount, behavior: 'smooth' });
   });
   
   nextBtn.addEventListener('click', () => {
-    const amount = getScrollAmount();
+    const amount = getCardWidthWithGap();
     carousel.scrollBy({ left: amount, behavior: 'smooth' });
   });
   
+  // Scroll Listener for Infinite Loop Snapping
+  const handleScrollLoop = () => {
+    const scrollLeft = carousel.scrollLeft;
+    const singleSetWidth = getSingleSetWidth();
+    
+    if (scrollLeft < singleSetWidth * 0.5) {
+      carousel.style.scrollBehavior = 'auto';
+      carousel.scrollLeft = scrollLeft + singleSetWidth;
+      carousel.style.scrollBehavior = '';
+    } else if (scrollLeft > singleSetWidth * 1.5) {
+      carousel.style.scrollBehavior = 'auto';
+      carousel.scrollLeft = scrollLeft - singleSetWidth;
+      carousel.style.scrollBehavior = '';
+    }
+  };
+  carousel.addEventListener('scroll', handleScrollLoop);
+  
   // Mouse Drag-to-Scroll implementation
   let isDown = false;
-  let startX;
-  let scrollLeftState;
-  let dragThreshold = 6; // pixels of movement to count as drag
+  let lastMouseX = 0;
+  let lastMouseY = 0;
+  const dragThreshold = 8; // pixels of movement to count as drag
   let startMouseX = 0;
   let startMouseY = 0;
   let hasDragged = false;
-  
-  carousel.addEventListener('mousedown', (e) => {
-    // Only drag with left mouse button
-    if (e.button !== 0) return;
+
+  // Touch tracking variables
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let touchHasDragged = false;
+
+  // Capture and swallow the click event if we dragged or swiped
+  const triggerPreventClick = () => {
+    const captureClick = (eClick) => {
+      eClick.preventDefault();
+      eClick.stopPropagation();
+      window.removeEventListener('click', captureClick, true);
+    };
+    window.addEventListener('click', captureClick, true);
+    // Safety fallback timeout to remove capturing listener if click didn't trigger
+    setTimeout(() => {
+      window.removeEventListener('click', captureClick, true);
+    }, 150);
+  };
+
+  const onMouseDown = (e) => {
+    if (e.button !== 0) return; // Only left mouse button drag
     isDown = true;
     hasDragged = false;
+
     carousel.classList.add('grabbing');
-    startX = e.pageX - carousel.offsetLeft;
-    scrollLeftState = carousel.scrollLeft;
+    carousel.style.scrollSnapType = 'none';
+    carousel.style.scrollBehavior = 'auto';
+
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
     startMouseX = e.clientX;
     startMouseY = e.clientY;
-  });
-  
-  carousel.addEventListener('mouseleave', () => {
-    if (isDown) {
-      isDown = false;
-      carousel.classList.remove('grabbing');
-    }
-  });
-  
-  carousel.addEventListener('mouseup', (e) => {
-    if (isDown) {
-      isDown = false;
-      carousel.classList.remove('grabbing');
-      
-      const diffX = Math.abs(e.clientX - startMouseX);
-      const diffY = Math.abs(e.clientY - startMouseY);
-      if (diffX > dragThreshold || diffY > dragThreshold) {
-        hasDragged = true;
-      }
-    }
-  });
-  
-  carousel.addEventListener('mousemove', (e) => {
+
+    window.addEventListener('mousemove', onMouseMove, { passive: false });
+    window.addEventListener('mouseup', onMouseUp);
+  };
+
+  const onMouseMove = (e) => {
     if (!isDown) return;
-    e.preventDefault();
-    
-    const x = e.pageX - carousel.offsetLeft;
-    const walk = (x - startX) * 1.5; // Drag speed multiplier
-    carousel.scrollLeft = scrollLeftState - walk;
-    
-    const diffX = Math.abs(e.clientX - startMouseX);
-    const diffY = Math.abs(e.clientY - startMouseY);
-    if (diffX > dragThreshold || diffY > dragThreshold) {
+
+    const currentX = e.clientX;
+    const currentY = e.clientY;
+
+    const diffX = Math.abs(currentX - startMouseX);
+    const diffY = Math.abs(currentY - startMouseY);
+
+    if (!hasDragged && (diffX > dragThreshold || diffY > dragThreshold)) {
       hasDragged = true;
     }
-  });
-  
-  // Wire lightbox open clicks on cards
+
+    if (hasDragged) {
+      e.preventDefault(); // Prevent text selection/drag ghost image
+      const deltaX = currentX - lastMouseX;
+      carousel.scrollLeft -= deltaX * 1.2; // Smooth movement factor
+    }
+
+    lastMouseX = currentX;
+    lastMouseY = currentY;
+  };
+
+  const onMouseUp = () => {
+    if (isDown) {
+      isDown = false;
+      carousel.classList.remove('grabbing');
+      carousel.style.scrollSnapType = '';
+      carousel.style.scrollBehavior = '';
+
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+
+      if (hasDragged) {
+        triggerPreventClick();
+      }
+    }
+  };
+
+  carousel.addEventListener('mousedown', onMouseDown);
+
+  // Touch handlers to prevent lightbox trigger on swipe scrolling
+  carousel.addEventListener('touchstart', (e) => {
+    touchHasDragged = false;
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+
+  carousel.addEventListener('touchmove', (e) => {
+    const diffX = Math.abs(e.touches[0].clientX - touchStartX);
+    const diffY = Math.abs(e.touches[0].clientY - touchStartY);
+    if (diffX > dragThreshold || diffY > dragThreshold) {
+      touchHasDragged = true;
+    }
+  }, { passive: true });
+
+  carousel.addEventListener('touchend', () => {
+    if (touchHasDragged) {
+      triggerPreventClick();
+    }
+  }, { passive: true });
+
+  // Wire lightbox open clicks, set draggable and custom background property on ALL cards
+  // Wire lightbox open clicks, set draggable and exact aspect ratio properties on ALL cards
+  const imageRatios = {
+    'XXXL.webp': 0.8,
+    'XXXL (1).webp': 0.75,
+    'XXXL (2).webp': 0.854,
+    'XXXL (3).webp': 0.75,
+    'XXXL (4).webp': 1.333,
+    'XXXL (5).webp': 0.877,
+    'XXXL (6).webp': 0.75,
+    'XXXL (7).webp': 0.75,
+    'XXXL (8).webp': 0.75,
+    'XXXL (9).webp': 0.75,
+    'XXXL (10).webp': 0.75
+  };
+
   const cards = carousel.querySelectorAll('.work-card');
   cards.forEach(card => {
-    card.addEventListener('click', (e) => {
-      // If we dragged, swallow the click event
-      if (hasDragged) {
-        hasDragged = false;
-        e.preventDefault();
-        e.stopPropagation();
-        return;
-      }
+    const img = card.querySelector('.work-img');
+    if (img) {
+      img.setAttribute('draggable', 'false');
+      // Set the dynamic custom property for the ambient blurred background
+      card.style.setProperty('--bg-image', `url('${img.getAttribute('src')}')`);
       
-      const img = card.querySelector('.work-img');
+      // Assign exact aspect ratio inline so the browser calculates card width instantly
+      const filename = img.getAttribute('src').split('/').pop();
+      const ratio = imageRatios[filename];
+      if (ratio) {
+        card.style.aspectRatio = ratio.toString();
+      }
+    }
+
+    card.addEventListener('click', (e) => {
       if (img && lightbox) {
         const lightboxImg = lightbox.querySelector('.lightbox-img');
         if (lightboxImg) {
@@ -672,17 +774,17 @@ const initWorksCarousel = () => {
     });
   });
   
-  // Listen to scroll events to update button states
-  carousel.addEventListener('scroll', updateButtons);
-  
-  // Also update buttons on window resize
-  window.addEventListener('resize', updateButtons);
+  // Update bounds on window resize to keep center alignment correct
+  window.addEventListener('resize', () => {
+    setInitialScroll();
+  });
 };
 
 // =============================================
 // 7. MOBILE NAVIGATION DRAWER & DROPDOWNS
 // =============================================
 const initMobileMenu = () => {
+  if (window.innerWidth <= 768) return; // Use new staggered mobile menu instead
   const header = document.querySelector('header');
   const toggle = document.querySelector('.mobile-nav-toggle');
   const dropdown = document.querySelector('.dropdown');
@@ -979,4 +1081,5 @@ document.addEventListener('DOMContentLoaded', () => {
   initWorksCarousel();
   initMobileMenu();
   initBookingModal();
+  initStaggeredMenu(lenis);
 });
