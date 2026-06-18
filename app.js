@@ -210,13 +210,12 @@ const preloadProgressively = async () => {
     return;
   }
   
-  // Set critical initial frames to load (first 30 frames, indices 0 to 29)
-  const CRITICAL_FRAMES_COUNT = 30;
+  // Load all 223 frames during the preloader phase to ensure 100% buttery smoothness on Vercel
   let loadedCriticalCount = 0;
   
   const updateProgress = () => {
     loadedCriticalCount++;
-    const progress = Math.min(100, Math.floor((loadedCriticalCount / CRITICAL_FRAMES_COUNT) * 100));
+    const progress = Math.min(100, Math.floor((loadedCriticalCount / FRAME_COUNT) * 100));
     
     const progressBar = document.getElementById('preloader-progress-bar');
     const percentageText = document.getElementById('preloader-percentage');
@@ -230,15 +229,15 @@ const preloadProgressively = async () => {
     updateProgress();
   });
   
-  // 2. Load the remaining critical frames (indices 1 to 29) in parallel, updating progress on each load
-  const criticalIndices = Array.from({ length: CRITICAL_FRAMES_COUNT - 1 }, (_, i) => i + 1);
-  await Promise.all(criticalIndices.map(index => {
+  // 2. Load the remaining frames in parallel, updating progress on each load
+  const remainingIndices = Array.from({ length: FRAME_COUNT - 1 }, (_, i) => i + 1);
+  await Promise.all(remainingIndices.map(index => {
     return loadFrame(index).then(() => {
       updateProgress();
     });
   }));
   
-  // 3. Initialize ScrollTrigger for scrubbing now that the critical segment is ready
+  // 3. Initialize ScrollTrigger for scrubbing now that the segment is ready
   initScrollTrigger();
   
   // 4. Smoothly fade out preloader and enable scroll
@@ -255,9 +254,6 @@ const preloadProgressively = async () => {
       lenis.start();
     }
   }, 400); // Small visual buffer for progress bar 100% completion state
-  
-  // 5. Load remaining frames progressively in background batches
-  loadRemainingFrames();
 };
 
 const initScrollTrigger = () => {
@@ -273,32 +269,6 @@ const initScrollTrigger = () => {
       drawFrame(frameIndex);
     }
   });
-};
-
-// Load remainder frames in steps (every 10th, then every 5th, then all rest) in batches of 8
-const loadRemainingFrames = async () => {
-  const batchSize = 8;
-
-  // Step 1: Every 10th frame (rough skeleton)
-  const step10 = [];
-  for (let i = 16; i < FRAME_COUNT; i += 10) {
-    step10.push(i);
-  }
-  await loadInBatches(step10, batchSize);
-
-  // Step 2: Every 5th frame
-  const step5 = [];
-  for (let i = 16; i < FRAME_COUNT; i += 5) {
-    if (i % 10 !== 0) step5.push(i);
-  }
-  await loadInBatches(step5, batchSize);
-
-  // Step 3: All remaining frames to complete full density
-  const remaining = [];
-  for (let i = 16; i < FRAME_COUNT; i++) {
-    if (i % 5 !== 0) remaining.push(i);
-  }
-  await loadInBatches(remaining, batchSize);
 };
 
 // =============================================
