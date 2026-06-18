@@ -89,10 +89,13 @@ export function initStaggeredMenu(lenisInstance) {
               <h3 class="sm-socials-title">Контакты</h3>
               <ul class="sm-socials-list" role="list">
                 <li class="sm-socials-item">
-                  <a href="tel:+78126111212" class="sm-socials-link">+7 (812) 611-12-12</a>
+                  <a href="tel:+79188599757" class="sm-socials-link">+7 (918) 859-97-57</a>
                 </li>
                 <li class="sm-socials-item">
-                  <a href="https://wa.me/78126111212" class="sm-socials-link" target="_blank" rel="noopener noreferrer">WhatsApp</a>
+                  <a href="tel:+79286110611" class="sm-socials-link">+7 (928) 611-06-11</a>
+                </li>
+                <li class="sm-socials-item">
+                  <a href="https://wa.me/79188599757" class="sm-socials-link" target="_blank" rel="noopener noreferrer">WhatsApp</a>
                 </li>
                 <li class="sm-socials-item">
                   <a href="https://t.me/detailing611" class="sm-socials-link" target="_blank" rel="noopener noreferrer">Telegram</a>
