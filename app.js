@@ -895,28 +895,115 @@ const initMobileMenu = () => {
 // 7.5. BOOKING MODAL ON SERVICE PAGES
 // =============================================
 const initBookingModal = () => {
+  // Helper to send data to Telegram
+  const sendFormData = async (data) => {
+    const response = await fetch('/api/send-telegram', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || 'Ошибка при отправке.');
+    }
+    return await response.json();
+  };
+
+  // Helper to get formatted context for detour manager
+  const getSourceContext = (formName) => {
+    const title = document.title || 'Сайт 611 detailing';
+    const path = window.location.pathname;
+    return `${formName} [${title}] (${path})`;
+  };
+
+  // Helper to escape HTML tags in browser messages
+  const escapeHtml = (text) => {
+    if (!text) return '';
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  };
+
   // Check if we are on a service page
   const isServicePage = !!document.querySelector('.service-hero');
   if (!isServicePage) {
     // On homepage, add success feedback to the inline booking form
     const homeForm = document.querySelector('.booking-form');
     if (homeForm) {
-      homeForm.addEventListener('submit', (e) => {
+      homeForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         
-        // Replace form contents with success message
-        homeForm.style.minHeight = `${homeForm.offsetHeight}px`;
-        homeForm.innerHTML = `
-          <div class="booking-success-message" style="animation: fadeIn 0.5s ease forwards;">
-            <div class="success-icon">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
-              </svg>
+        // Remove previous error messages if any
+        const prevError = homeForm.querySelector('.booking-error-message');
+        if (prevError) prevError.remove();
+        
+        const nameInput = homeForm.querySelector('#name');
+        const phoneInput = homeForm.querySelector('#phone');
+        const carInput = homeForm.querySelector('#car');
+        const serviceSelect = homeForm.querySelector('#service');
+        const commentInput = homeForm.querySelector('#comment');
+        const submitBtn = homeForm.querySelector('.btn-submit');
+        
+        const name = nameInput ? nameInput.value.trim() : '';
+        const phone = phoneInput ? phoneInput.value.trim() : '';
+        const car = carInput ? carInput.value.trim() : '';
+        const service = serviceSelect ? serviceSelect.value : 'none';
+        const comment = commentInput ? commentInput.value.trim() : '';
+        
+        if (!name || !phone) return;
+        
+        // Disable form fields during submission
+        const inputs = [nameInput, phoneInput, carInput, serviceSelect, commentInput, submitBtn].filter(Boolean);
+        inputs.forEach(el => el.disabled = true);
+        const originalBtnText = submitBtn.textContent;
+        submitBtn.textContent = 'Отправка...';
+        
+        try {
+          await sendFormData({
+            name,
+            phone,
+            car,
+            service,
+            comment,
+            source: getSourceContext('Основная форма')
+          });
+          
+          // Smooth success state transition
+          homeForm.style.minHeight = `${homeForm.offsetHeight}px`;
+          homeForm.innerHTML = `
+            <div class="booking-success-message" style="animation: fadeIn 0.5s ease forwards;">
+              <div class="success-icon">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
+                </svg>
+              </div>
+              <h4>Заявка отправлена!</h4>
+              <p>Мы свяжемся с вами в ближайшее время.</p>
             </div>
-            <h4>Заявка принята!</h4>
-            <p>Мы свяжемся с вами в течение 10 минут для подтверждения записи.</p>
-          </div>
-        `;
+          `;
+        } catch (err) {
+          console.error(err);
+          // Re-enable inputs on failure
+          inputs.forEach(el => el.disabled = false);
+          submitBtn.textContent = originalBtnText;
+          
+          // Display premium error banner below the form
+          const errorHTML = `
+            <div class="booking-error-message">
+              <div class="error-icon">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+              </div>
+              <h5>Ошибка отправки</h5>
+              <p>${escapeHtml(err.message || 'Не удалось отправить заявку. Попробуйте еще раз или свяжитесь с нами через WhatsApp/Telegram.')}</p>
+            </div>
+          `;
+          homeForm.insertAdjacentHTML('beforeend', errorHTML);
+        }
       });
     }
     return;
@@ -1007,16 +1094,15 @@ const initBookingModal = () => {
         modalForm.reset();
         const contentBox = modal.querySelector('.booking-form-modal');
         const successBox = modal.querySelector('.booking-success-message');
-        if (successBox) {
-          successBox.remove();
-          contentBox.style.display = 'block';
-        }
+        const errorBox = modal.querySelector('.booking-error-message');
+        if (successBox) successBox.remove();
+        if (errorBox) errorBox.remove();
+        contentBox.style.display = 'block';
       }
     }, 400);
   };
 
   // Intercept click on any link pointing to booking section that matches "Записаться"
-  // (both header button, pricing tables, and footer links)
   const bookLinks = document.querySelectorAll('a[href*="#book"]');
   bookLinks.forEach(link => {
     const text = link.textContent.trim().toLowerCase();
@@ -1041,53 +1127,121 @@ const initBookingModal = () => {
 
   // Modal form submit handler
   if (modalForm) {
-    modalForm.addEventListener('submit', (e) => {
+    modalForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       
-      const name = modal.querySelector('#modal-name').value.trim();
-      const phone = modal.querySelector('#modal-phone').value.trim();
+      const prevError = modal.querySelector('.booking-error-message');
+      if (prevError) prevError.remove();
+
+      const nameInput = modal.querySelector('#modal-name');
+      const phoneInput = modal.querySelector('#modal-phone');
+      const serviceSelect = modal.querySelector('#modal-service');
+      const commentInput = modal.querySelector('#modal-comment');
+      const submitBtn = modalForm.querySelector('.btn-submit');
+
+      const name = nameInput ? nameInput.value.trim() : '';
+      const phone = phoneInput ? phoneInput.value.trim() : '';
+      const service = serviceSelect ? serviceSelect.value : 'wash';
+      const comment = commentInput ? commentInput.value.trim() : '';
 
       if (!name || !phone) return;
 
-      // Transition to success state
-      const contentBox = modal.querySelector('.booking-form-modal');
-      contentBox.style.display = 'none';
+      const inputs = [nameInput, phoneInput, serviceSelect, commentInput, submitBtn].filter(Boolean);
+      inputs.forEach(el => el.disabled = true);
+      const originalBtnText = submitBtn.textContent;
+      submitBtn.textContent = 'Отправка...';
 
-      const successHTML = `
-        <div class="booking-success-message" style="animation: fadeIn 0.4s ease forwards;">
-          <div class="success-icon">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
-            </svg>
+      try {
+        await sendFormData({
+          name,
+          phone,
+          service,
+          comment,
+          source: getSourceContext('Модальное окно')
+        });
+
+        // Transition to success state
+        const contentBox = modal.querySelector('.booking-form-modal');
+        contentBox.style.display = 'none';
+
+        const successHTML = `
+          <div class="booking-success-message" style="animation: fadeIn 0.4s ease forwards;">
+            <div class="success-icon">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
+              </svg>
+            </div>
+            <h4>Заявка отправлена!</h4>
+            <p>Мы свяжемся с вами в ближайшее время.</p>
           </div>
-          <h4>Заявка отправлена!</h4>
-          <p>Спасибо за обращение. Менеджер свяжется с вами в течение 10 минут для подтверждения записи.</p>
-        </div>
-      `;
-      modal.querySelector('.booking-modal-content').insertAdjacentHTML('beforeend', successHTML);
+        `;
+        modal.querySelector('.booking-modal-content').insertAdjacentHTML('beforeend', successHTML);
 
-      // Auto-close modal after a delay
-      setTimeout(() => {
-        closeModal();
-      }, 3500);
+        // Auto-close modal after a delay
+        setTimeout(() => {
+          closeModal();
+        }, 3500);
+      } catch (err) {
+        console.error(err);
+        inputs.forEach(el => el.disabled = false);
+        submitBtn.textContent = originalBtnText;
+
+        const errorHTML = `
+          <div class="booking-error-message">
+            <div class="error-icon">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+              </svg>
+            </div>
+            <h5>Ошибка отправки</h5>
+            <p>${escapeHtml(err.message || 'Не удалось отправить заявку. Попробуйте еще раз или свяжитесь через WhatsApp/Telegram.')}</p>
+          </div>
+        `;
+        modal.querySelector('.booking-modal-content').insertAdjacentHTML('beforeend', errorHTML);
+      }
     });
   }
 
   // Handle the service page's bottom inline booking form too
   const pageForm = document.querySelector('.booking-form');
   if (pageForm) {
-    const pageSubmitBtn = pageForm.querySelector('.btn-submit');
-    if (pageSubmitBtn) {
-      pageSubmitBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        const nameInput = pageForm.querySelector('#name');
-        const phoneInput = pageForm.querySelector('#phone');
-        
-        if (!nameInput || !phoneInput || !nameInput.value.trim() || !phoneInput.value.trim()) {
-          alert('Пожалуйста, заполните обязательные поля: Имя и Телефон');
-          return;
-        }
-        
+    pageForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const prevError = pageForm.querySelector('.booking-error-message');
+      if (prevError) prevError.remove();
+
+      const nameInput = pageForm.querySelector('#name');
+      const phoneInput = pageForm.querySelector('#phone');
+      const carInput = pageForm.querySelector('#car');
+      const serviceSelect = pageForm.querySelector('#service');
+      const commentInput = pageForm.querySelector('#comment');
+      const submitBtn = pageForm.querySelector('.btn-submit');
+
+      const name = nameInput ? nameInput.value.trim() : '';
+      const phone = phoneInput ? phoneInput.value.trim() : '';
+      const car = carInput ? carInput.value.trim() : '';
+      const service = serviceSelect ? serviceSelect.value : 'none';
+      const comment = commentInput ? commentInput.value.trim() : '';
+
+      if (!name || !phone) return;
+
+      const inputs = [nameInput, phoneInput, carInput, serviceSelect, commentInput, submitBtn].filter(Boolean);
+      inputs.forEach(el => el.disabled = true);
+      const originalBtnText = submitBtn.textContent;
+      submitBtn.textContent = 'Отправка...';
+
+      try {
+        await sendFormData({
+          name,
+          phone,
+          car,
+          service,
+          comment,
+          source: getSourceContext('Нижняя форма страницы услуг')
+        });
+
+        // Show success message
         pageForm.style.minHeight = `${pageForm.offsetHeight}px`;
         pageForm.innerHTML = `
           <div class="booking-success-message" style="animation: fadeIn 0.5s ease forwards;">
@@ -1097,13 +1251,31 @@ const initBookingModal = () => {
               </svg>
             </div>
             <h4>Заявка отправлена!</h4>
-            <p>Менеджер перезвонит вам в течение 10 минут для подтверждения записи.</p>
+            <p>Мы свяжемся с вами в ближайшее время.</p>
           </div>
         `;
-      });
-    }
+      } catch (err) {
+        console.error(err);
+        inputs.forEach(el => el.disabled = false);
+        submitBtn.textContent = originalBtnText;
+
+        const errorHTML = `
+          <div class="booking-error-message">
+            <div class="error-icon">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+              </svg>
+            </div>
+            <h5>Ошибка отправки</h5>
+            <p>${escapeHtml(err.message || 'Не удалось отправить заявку. Попробуйте еще раз или свяжитесь через WhatsApp/Telegram.')}</p>
+          </div>
+        `;
+        pageForm.insertAdjacentHTML('beforeend', errorHTML);
+      }
+    });
   }
 };
+
 
 // =============================================
 // 8. INITIALIZATION & RESIZE EVENT
