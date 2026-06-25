@@ -34,7 +34,8 @@ export default defineConfig({
       name: 'api-serverless-dev',
       configureServer(server) {
         server.middlewares.use(async (req, res, next) => {
-          if (req.url === '/api/send-telegram' && req.method === 'POST') {
+          const urlPath = req.url.split('?')[0];
+          if (urlPath === '/api/send-telegram' && req.method === 'POST') {
             let body = '';
             req.on('data', chunk => {
               body += chunk.toString();

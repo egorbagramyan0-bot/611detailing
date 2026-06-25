@@ -26,13 +26,21 @@ module.exports = async (req, res) => {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
 
-  if (!token || !chatId) {
-    console.error('Environment variables TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID are not set.');
-    return res.status(500).json({ error: 'Ошибка конфигурации сервера. Проверьте переменные окружения.' });
+  // Diagnostics: Verbose server logs for environment variables
+  if (!token) {
+    console.error('❌ CONFIG ERROR: TELEGRAM_BOT_TOKEN is not defined in environment variables.');
+    return res.status(500).json({ 
+      error: 'Ошибка конфигурации: отсутствует токен бота (TELEGRAM_BOT_TOKEN). Проверьте файл .env.' 
+    });
+  }
+  if (!chatId) {
+    console.error('❌ CONFIG ERROR: TELEGRAM_CHAT_ID is not defined in environment variables.');
+    return res.status(500).json({ 
+      error: 'Ошибка конфигурации: отсутствует ID чата (TELEGRAM_CHAT_ID). Проверьте файл .env.' 
+    });
   }
 
   // Format Chat ID: Group/supergroup IDs must start with '-'
-  // If it starts with '100' (positive representation of a supergroup ID), we prepend '-'
   let formattedChatId = chatId.trim();
   if (!formattedChatId.startsWith('-')) {
     if (formattedChatId.startsWith('100')) {
@@ -113,15 +121,20 @@ module.exports = async (req, res) => {
 
     const result = await response.json();
     if (!response.ok || !result.ok) {
-      console.error('Telegram API response error:', result);
-      return res.status(502).json({ error: 'Не удалось отправить сообщение в Telegram через API.' });
+      console.error('❌ TELEGRAM API ERROR:', result);
+      return res.status(502).json({ 
+        error: `Telegram API вернул ошибку: ${result.description || 'Неизвестный статус'}` 
+      });
     }
 
     return res.status(200).json({ success: true });
   } catch (err) {
-    console.error('Network error during Telegram API call:', err);
-    return res.status(500).json({ error: 'Внутренняя ошибка сервера при отправке.' });
+    console.error('❌ NET ERROR during Telegram API call:', err);
+    return res.status(500).json({ 
+      error: `Сетевая ошибка при отправке: ${err.message || err.toString()}. Возможно, требуется VPN для обхода блокировок api.telegram.org в РФ.` 
+    });
   }
+
 };
 
 // Helper function to escape HTML tags and prevent Telegram parse errors
