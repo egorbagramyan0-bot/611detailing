@@ -1,0 +1,5 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  # Rewrite /api/send-telegram to /api/send-telegram.php
+  RewriteRule ^api/send-telegram$ api/send-telegram.php [L,QSA]
+</IfModule>
