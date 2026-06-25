@@ -10,6 +10,7 @@
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
   <link rel="preload" href="/fonts/TTHoves-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/Intro.otf" as="font" type="font/sfnt" crossorigin>
 </head>
 <body>
 
@@ -328,68 +329,120 @@
 <!-- CTA / Booking Section -->
   <section id="book" class="page-section">
     <div class="container cta-grid">
-      <div class="cta-info fade-up">
-        <span class="section-eyebrow">Онлайн запись</span>
-        <h2 class="section-title">Доверьте заботу<br><span>профессионалам</span></h2>
+      
+      <!-- Left Column: Form -->
+      <div class="cta-form-column fade-up">
+        <span class="section-eyebrow">Запись на детейлинг</span>
+        <h2 class="section-title">Запишитесь <span>на детейлинг</span></h2>
         <p class="cta-subtitle">
-          Заполните форму, и&nbsp;наш менеджер свяжется с&nbsp;вами для&nbsp;подробной консультации, оценки стоимости работ по&nbsp;фото/видео и&nbsp;бронирования удобного времени.
+          Оставьте заявку — подберем комплекс ухода под ваш автомобиль и проконсультируем по всем этапам работ.
         </p>
         
-        <div class="contact-details">
-          <div class="contact-item">
-            <div class="contact-icon">
+        <form class="booking-form">
+          <div class="form-group">
+            <label for="name">Ваше имя</label>
+            <input type="text" id="name" class="form-control" placeholder="Александр" required>
+          </div>
+          <div class="form-group">
+            <label for="phone">Телефон</label>
+            <input type="tel" id="phone" class="form-control" placeholder="+7 (999) 000-00-00" required>
+          </div>
+          <div class="form-group">
+            <label for="car">Марка и модель авто</label>
+            <input type="text" id="car" class="form-control" placeholder="Porsche Cayenne, BMW M5..." required>
+          </div>
+          <div class="form-group">
+            <label for="service">Интересующая услуга</label>
+            <select id="service" class="form-control">
+              <option value="none">Выберите программу...</option>
+              <option value="wash">Детейлинг-мойка</option>
+              <option value="polish">Полировка кузова</option>
+              <option value="ceramic">Керамическое покрытие</option>
+              <option value="wrap">Защитная пленка (PPF)</option>
+              <option value="dry-clean">Химчистка салона</option>
+              <option value="leather">Уход за кожей</option>
+              <option value="prep">Антидождь & Подготовка</option>
+              <option value="complex">Комплексный уход</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="comment">Комментарий (необязательно)</label>
+            <textarea id="comment" class="form-control form-textarea" placeholder="Особые пожелания или удобное время для звонка..." rows="3"></textarea>
+          </div>
+          <button type="submit" class="btn-submit">Отправить заявку</button>
+        </form>
+      </div>
+
+      <!-- Right Column: Contacts & Map -->
+      <div class="cta-contacts-column fade-up">
+        <span class="section-eyebrow">Контакты</span>
+        <h2 class="section-title">Свяжитесь <span>с нами</span></h2>
+        <p class="cta-subtitle">
+          Приезжайте в 611 detailing или свяжитесь с нами удобным для вас способом. Мы всегда на связи.
+        </p>
+
+        <!-- Contact Info Cards -->
+        <div class="contact-cards-container">
+          <div class="contact-card-item">
+            <div class="contact-card-icon">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"></path>
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25s-7.5-4.108-7.5-11.25a7.5 7.5 0 1115 0z"></path>
               </svg>
             </div>
-            <div>
-              <div class="contact-label">Адрес студии</div>
-              <div class="contact-value">Большесальская ул., 2В, село Крым</div>
+            <div class="contact-card-info">
+              <div class="contact-card-label">Адрес студии</div>
+              <div class="contact-card-value">Большесальская ул., 2В, село Крым</div>
             </div>
           </div>
 
-          <div class="contact-item">
-            <div class="contact-icon">
+          <div class="contact-card-item">
+            <div class="contact-card-icon">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-1.514 2.019a15.753 15.753 0 01-6.837-6.837l2.019-1.514c.362-.272.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"></path>
               </svg>
             </div>
-            <div>
-              <div class="contact-label">Телефон для&nbsp;связи</div>
-              <div class="contact-value" style="display: flex; flex-direction: column; gap: 4px;">
-                <a href="tel:+79188599757" style="color: inherit; text-decoration: none; transition: color 0.3s ease;" onmouseover="this.style.color='#2a86ff'" onmouseout="this.style.color='inherit'">+7 (918) 859-97-57</a>
-                <a href="tel:+79286110611" style="color: inherit; text-decoration: none; transition: color 0.3s ease;" onmouseover="this.style.color='#2a86ff'" onmouseout="this.style.color='inherit'">+7 (928) 611-06-11</a>
+            <div class="contact-card-info">
+              <div class="contact-card-label">Телефоны для связи</div>
+              <div class="contact-card-value">
+                <a href="tel:+79188599757">+7 (918) 859-97-57</a>
+                <span class="separator">/</span>
+                <a href="tel:+79286110611">+7 (928) 611-06-11</a>
               </div>
             </div>
           </div>
         </div>
+
+        <!-- Quick Action Buttons -->
+        <div class="contact-actions">
+          <a href="https://wa.me/79188599757" target="_blank" rel="noopener noreferrer" class="btn-action whatsapp-btn" aria-label="Связаться через WhatsApp">
+            <svg fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.746.953 3.71 1.455 5.703 1.458h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"></path>
+            </svg>
+            WhatsApp
+          </a>
+          <a href="https://t.me/detailing611" target="_blank" rel="noopener noreferrer" class="btn-action telegram-btn" aria-label="Связаться через Telegram">
+            <svg fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.161c-.18.717-.962 4.084-1.362 5.447-.17.577-.384.77-.589.789-.451.041-.793-.298-1.23-.585-.683-.448-1.069-.728-1.733-1.165-.768-.505-.27-.783.168-1.237.115-.119 2.1-.1.92-1.921-2.484-1.637-2.529-.115-3.431.49-.69.462-1.34.118-1.841-.044-.457-.147-.82-.225-.788-.475.017-.13.197-.263.538-.4.341-.137 2.23-.912 3.142-1.294.912-.382 1.822-.544 2.733-.487.411.026.82.128 1.229.308.384.168.74.417 1.055.733.284.285.508.624.662.998.077.187.117.387.118.589-.001.202-.041.402-.118.589-.154.374-.378.713-.662.998z"></path>
+            </svg>
+            Telegram
+          </a>
+        </div>
+
+        <!-- Map Container -->
+        <div class="map-wrapper">
+          <div class="map-container">
+            <iframe src="https://yandex.ru/map-widget/v1/-/CTQj7SNW" width="100%" height="100%" frameborder="0" allowfullscreen="true" style="position: relative; border: 0;"></iframe>
+          </div>
+          <a href="https://yandex.ru/maps/-/CTQj7SNW" target="_blank" rel="noopener noreferrer" class="btn-map-link">
+            Открыть в Яндекс.Картах
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+            </svg>
+          </a>
+        </div>
       </div>
 
-      <!-- Form -->
-      <div class="booking-form fade-up">
-        <div class="form-group">
-          <label for="name">Ваше имя</label>
-          <input type="text" id="name" class="form-control" placeholder="Александр" required>
-        </div>
-        <div class="form-group">
-          <label for="phone">Телефон</label>
-          <input type="tel" id="phone" class="form-control" placeholder="+7 (999) 000-00-00" required>
-        </div>
-        <div class="form-group">
-          <label for="service">Интересующая услуга</label>
-          <select id="service" class="form-control">
-            <option value="none">Выберите программу...</option>
-            <option value="wash">Детейлинг-мойка</option>
-            <option value="polish">Полировка кузова</option>
-            <option value="ceramic">Керамическое покрытие</option>
-            <option value="wrap">Защитная пленка (PPF)</option>
-            <option value="dry-clean">Химчистка салона</option>
-            <option value="complex">Комплексная подготовка</option>
-          </select>
-        </div>
-        <button type="submit" class="btn-submit">Записаться на&nbsp;детейлинг</button>
-      </div>
     </div>
   </section>
 

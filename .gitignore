@@ -15,3 +15,11 @@ lerna-debug.log*
 # Agent-specific directories
 .gemini/
 scratch/
+
+# Large media sources
+*.zip
+*.mp4
+
+# Mockups
+public/hero for mob/
+public/hero for pc/

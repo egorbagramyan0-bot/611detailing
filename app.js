@@ -54,10 +54,11 @@ const canvas = document.getElementById('hero-canvas');
 const ctx = canvas ? canvas.getContext('2d') : null;
 
 const isMobile = window.innerWidth <= 768;
-const FRAME_COUNT = 223;
+const FRAME_COUNT = isMobile ? 165 : 220;
 const FRAME_PATH = (index) => {
-  const folder = isMobile ? 'hero_mob' : 'hero6';
-  return `/${folder}/frame_${String(index).padStart(4, '0')}.jpg`;
+  const folder = isMobile ? 'formob' : 'forpc';
+  const ext = isMobile ? 'jpg' : 'webp';
+  return `/${folder}/frame_${String(index).padStart(4, '0')}.${ext}`;
 };
 
 const frames = new Array(FRAME_COUNT).fill(null);
@@ -210,12 +211,13 @@ const preloadProgressively = async () => {
     return;
   }
   
-  // Load all 223 frames during the preloader phase to ensure 100% buttery smoothness on Vercel
+  // Critical Preload Count: 8 frames for mobile, 12 frames for desktop
+  const CRITICAL_PRELOAD_COUNT = isMobile ? 8 : 12;
   let loadedCriticalCount = 0;
   
   const updateProgress = () => {
     loadedCriticalCount++;
-    const progress = Math.min(100, Math.floor((loadedCriticalCount / FRAME_COUNT) * 100));
+    const progress = Math.min(100, Math.floor((loadedCriticalCount / CRITICAL_PRELOAD_COUNT) * 100));
     
     const progressBar = document.getElementById('preloader-progress-bar');
     const percentageText = document.getElementById('preloader-percentage');
@@ -229,9 +231,9 @@ const preloadProgressively = async () => {
     updateProgress();
   });
   
-  // 2. Load the remaining frames in parallel, updating progress on each load
-  const remainingIndices = Array.from({ length: FRAME_COUNT - 1 }, (_, i) => i + 1);
-  await Promise.all(remainingIndices.map(index => {
+  // 2. Load the remaining critical frames in parallel
+  const criticalIndices = Array.from({ length: CRITICAL_PRELOAD_COUNT - 1 }, (_, i) => i + 1);
+  await Promise.all(criticalIndices.map(index => {
     return loadFrame(index).then(() => {
       updateProgress();
     });
@@ -247,12 +249,40 @@ const preloadProgressively = async () => {
       preloader.classList.add('fade-out');
     }
     
-    // Reset scroll positions to zero to clear any accumulated load-time scroll delta
+    // Check if there is a hash in the URL on load (e.g. /#about)
+    const hash = window.location.hash;
+    if (hash) {
+      const targetElement = document.querySelector(hash);
+      if (targetElement) {
+        // Reset scroll position to 0 first to ensure ScrollTrigger syncs correctly
+        window.scrollTo(0, 0);
+        if (typeof lenis !== 'undefined') {
+          lenis.scrollTo(0, { immediate: true });
+          lenis.start();
+          
+          // Smooth scroll to the target section after a small timeout to allow layout to settle
+          setTimeout(() => {
+            lenis.scrollTo(targetElement, {
+              offset: -40,
+              duration: 1.5,
+              easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t))
+            });
+          }, 100);
+        }
+        return;
+      }
+    }
+    
+    // Standard behavior (no hash)
     window.scrollTo(0, 0);
     if (typeof lenis !== 'undefined') {
       lenis.scrollTo(0, { immediate: true });
       lenis.start();
     }
+
+    // 5. Load the remaining frames in the background in batches of 4
+    const remainingIndices = Array.from({ length: FRAME_COUNT - CRITICAL_PRELOAD_COUNT }, (_, i) => i + CRITICAL_PRELOAD_COUNT);
+    loadInBatches(remainingIndices, 4);
   }, 400); // Small visual buffer for progress bar 100% completion state
 };
 
@@ -562,13 +592,40 @@ const initWorksCarousel = () => {
   // Wait a tiny delay to ensure layout is computed, or do it immediately
   setTimeout(setInitialScroll, 50);
   
+  // Pointer-based Drag-to-Scroll implementation with inertia
+  let isDown = false;
+  let hasDragged = false;
+  let startX = 0;
+  let startY = 0;
+  let lastX = 0;
+  let lastTime = 0;
+  let velocity = 0;
+  let inertiaRaf = null;
+  const dragThreshold = 8; // pixels of movement to count as drag
+
+  // Touch tracking variables for click prevention on mobile
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let touchHasDragged = false;
+
+  // Cancel any running inertia animation
+  const cancelInertia = () => {
+    if (inertiaRaf) {
+      cancelAnimationFrame(inertiaRaf);
+      inertiaRaf = null;
+    }
+    velocity = 0;
+  };
+
   // Scroll on arrow click
   prevBtn.addEventListener('click', () => {
+    cancelInertia();
     const amount = getCardWidthWithGap();
     carousel.scrollBy({ left: -amount, behavior: 'smooth' });
   });
   
   nextBtn.addEventListener('click', () => {
+    cancelInertia();
     const amount = getCardWidthWithGap();
     carousel.scrollBy({ left: amount, behavior: 'smooth' });
   });
@@ -589,20 +646,6 @@ const initWorksCarousel = () => {
     }
   };
   carousel.addEventListener('scroll', handleScrollLoop);
-  
-  // Mouse Drag-to-Scroll implementation
-  let isDown = false;
-  let lastMouseX = 0;
-  let lastMouseY = 0;
-  const dragThreshold = 8; // pixels of movement to count as drag
-  let startMouseX = 0;
-  let startMouseY = 0;
-  let hasDragged = false;
-
-  // Touch tracking variables
-  let touchStartX = 0;
-  let touchStartY = 0;
-  let touchHasDragged = false;
 
   // Capture and swallow the click event if we dragged or swiped
   const triggerPreventClick = () => {
@@ -618,64 +661,110 @@ const initWorksCarousel = () => {
     }, 150);
   };
 
-  const onMouseDown = (e) => {
-    if (e.button !== 0) return; // Only left mouse button drag
-    isDown = true;
-    hasDragged = false;
-
-    carousel.classList.add('grabbing');
-    carousel.style.scrollSnapType = 'none';
-    carousel.style.scrollBehavior = 'auto';
-
-    lastMouseX = e.clientX;
-    lastMouseY = e.clientY;
-    startMouseX = e.clientX;
-    startMouseY = e.clientY;
-
-    window.addEventListener('mousemove', onMouseMove, { passive: false });
-    window.addEventListener('mouseup', onMouseUp);
+  const startInertia = () => {
+    cancelInertia();
+    let lastTickTime = performance.now();
+    
+    const tick = () => {
+      const now = performance.now();
+      const dt = now - lastTickTime;
+      lastTickTime = now;
+      
+      if (Math.abs(velocity) < 0.15) {
+        velocity = 0;
+        return;
+      }
+      
+      // Scale movement and friction by elapsed time (normalized to standard 16.67ms frame)
+      const timeScale = Math.min(dt / 16.67, 4);
+      carousel.scrollLeft += velocity * timeScale;
+      velocity *= Math.pow(0.95, timeScale); // premium time-independent slow-down
+      
+      handleScrollLoop();
+      
+      inertiaRaf = requestAnimationFrame(tick);
+    };
+    
+    inertiaRaf = requestAnimationFrame(tick);
   };
 
-  const onMouseMove = (e) => {
+  const onPointerDown = (e) => {
+    // Only handle mouse drag. Mobile touch uses browser native scrolling.
+    if (e.pointerType !== 'mouse' || e.button !== 0) return;
+
+    isDown = true;
+    hasDragged = false;
+    cancelInertia();
+
+    carousel.classList.add('grabbing');
+    carousel.style.scrollBehavior = 'auto';
+
+    startX = e.clientX;
+    startY = e.clientY;
+    lastX = e.clientX;
+    lastTime = performance.now();
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+  };
+
+  const onPointerMove = (e) => {
     if (!isDown) return;
 
     const currentX = e.clientX;
-    const currentY = e.clientY;
+    const diffX = Math.abs(currentX - startX);
 
-    const diffX = Math.abs(currentX - startMouseX);
-    const diffY = Math.abs(currentY - startMouseY);
-
-    if (!hasDragged && (diffX > dragThreshold || diffY > dragThreshold)) {
+    if (!hasDragged && diffX > dragThreshold) {
       hasDragged = true;
     }
 
     if (hasDragged) {
       e.preventDefault(); // Prevent text selection/drag ghost image
-      const deltaX = currentX - lastMouseX;
-      carousel.scrollLeft -= deltaX * 1.2; // Smooth movement factor
-    }
+      const deltaX = currentX - lastX;
+      carousel.scrollLeft -= deltaX;
 
-    lastMouseX = currentX;
-    lastMouseY = currentY;
+      // Track velocity of drag
+      const now = performance.now();
+      const dt = now - lastTime;
+      if (dt > 0) {
+        // Velocity normalized to standard 16.67ms frame time
+        velocity = -deltaX / dt * 16.67;
+      }
+      lastTime = now;
+      lastX = currentX;
+    }
   };
 
-  const onMouseUp = () => {
+  const onPointerUp = () => {
     if (isDown) {
       isDown = false;
       carousel.classList.remove('grabbing');
-      carousel.style.scrollSnapType = '';
       carousel.style.scrollBehavior = '';
 
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
 
       if (hasDragged) {
         triggerPreventClick();
+
+        // Clear velocity if drag stopped before releasing
+        const now = performance.now();
+        if (now - lastTime > 100) {
+          velocity = 0;
+        }
+
+        // Limit maximum velocity to prevent infinite spinning on crazy flicks
+        const maxVelocity = 45;
+        velocity = Math.max(-maxVelocity, Math.min(maxVelocity, velocity));
+
+        if (Math.abs(velocity) > 0.5) {
+          startInertia();
+        }
       }
     }
   };
 
-  carousel.addEventListener('mousedown', onMouseDown);
+  carousel.addEventListener('pointerdown', onPointerDown);
 
   // Touch handlers to prevent lightbox trigger on swipe scrolling
   carousel.addEventListener('touchstart', (e) => {
@@ -818,33 +907,23 @@ const initBookingModal = () => {
     // On homepage, add success feedback to the inline booking form
     const homeForm = document.querySelector('.booking-form');
     if (homeForm) {
-      const submitBtn = homeForm.querySelector('.btn-submit');
-      if (submitBtn) {
-        submitBtn.addEventListener('click', (e) => {
-          e.preventDefault();
-          const nameInput = homeForm.querySelector('#name');
-          const phoneInput = homeForm.querySelector('#phone');
-          
-          if (!nameInput || !phoneInput || !nameInput.value.trim() || !phoneInput.value.trim()) {
-            alert('Пожалуйста, заполните обязательные поля: Имя и Телефон');
-            return;
-          }
-          
-          // Replace form contents with success message
-          homeForm.style.minHeight = `${homeForm.offsetHeight}px`;
-          homeForm.innerHTML = `
-            <div class="booking-success-message" style="animation: fadeIn 0.5s ease forwards;">
-              <div class="success-icon">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
-                </svg>
-              </div>
-              <h4>Заявка принята!</h4>
-              <p>Мы свяжемся с вами в течение 10 минут для подтверждения записи.</p>
+      homeForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        
+        // Replace form contents with success message
+        homeForm.style.minHeight = `${homeForm.offsetHeight}px`;
+        homeForm.innerHTML = `
+          <div class="booking-success-message" style="animation: fadeIn 0.5s ease forwards;">
+            <div class="success-icon">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
+              </svg>
             </div>
-          `;
-        });
-      }
+            <h4>Заявка принята!</h4>
+            <p>Мы свяжемся с вами в течение 10 минут для подтверждения записи.</p>
+          </div>
+        `;
+      });
     }
     return;
   }
