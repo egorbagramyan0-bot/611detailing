@@ -211,13 +211,12 @@ const preloadProgressively = async () => {
     return;
   }
   
-  // Critical Preload Count: 8 frames for mobile, 12 frames for desktop
-  const CRITICAL_PRELOAD_COUNT = isMobile ? 8 : 12;
+  // Load all frames during the preloader phase to ensure 100% buttery smoothness on Vercel
   let loadedCriticalCount = 0;
   
   const updateProgress = () => {
     loadedCriticalCount++;
-    const progress = Math.min(100, Math.floor((loadedCriticalCount / CRITICAL_PRELOAD_COUNT) * 100));
+    const progress = Math.min(100, Math.floor((loadedCriticalCount / FRAME_COUNT) * 100));
     
     const progressBar = document.getElementById('preloader-progress-bar');
     const percentageText = document.getElementById('preloader-percentage');
@@ -231,9 +230,9 @@ const preloadProgressively = async () => {
     updateProgress();
   });
   
-  // 2. Load the remaining critical frames in parallel
-  const criticalIndices = Array.from({ length: CRITICAL_PRELOAD_COUNT - 1 }, (_, i) => i + 1);
-  await Promise.all(criticalIndices.map(index => {
+  // 2. Load the remaining frames in parallel, updating progress on each load
+  const remainingIndices = Array.from({ length: FRAME_COUNT - 1 }, (_, i) => i + 1);
+  await Promise.all(remainingIndices.map(index => {
     return loadFrame(index).then(() => {
       updateProgress();
     });
@@ -279,10 +278,6 @@ const preloadProgressively = async () => {
       lenis.scrollTo(0, { immediate: true });
       lenis.start();
     }
-
-    // 5. Load the remaining frames in the background in batches of 4
-    const remainingIndices = Array.from({ length: FRAME_COUNT - CRITICAL_PRELOAD_COUNT }, (_, i) => i + CRITICAL_PRELOAD_COUNT);
-    loadInBatches(remainingIndices, 4);
   }, 400); // Small visual buffer for progress bar 100% completion state
 };
 
