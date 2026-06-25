@@ -56,9 +56,8 @@ const ctx = canvas ? canvas.getContext('2d') : null;
 const isMobile = window.innerWidth <= 768;
 const FRAME_COUNT = isMobile ? 165 : 220;
 const FRAME_PATH = (index) => {
-  const folder = isMobile ? 'formob' : 'forpc';
-  const ext = isMobile ? 'jpg' : 'webp';
-  return `/${folder}/frame_${String(index).padStart(4, '0')}.${ext}`;
+  const folder = isMobile ? 'formob_webp' : 'forpc';
+  return `/${folder}/frame_${String(index).padStart(4, '0')}.webp`;
 };
 
 const frames = new Array(FRAME_COUNT).fill(null);
